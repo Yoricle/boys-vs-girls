@@ -1,0 +1,85 @@
+{
+	"name": "boys-vs-girls",
+	"tree": {
+		"$className": "DataModel",
+  
+		"ReplicatedStorage": {
+			"RoactComponents": {
+				"$className": "Folder",
+				"$path": "RoactComponents"
+			},
+			"HelperFunctions": {
+				"$className": "Folder",
+				"$path": "HelperFunctions"
+			},
+			"ComponentExtensions": {
+				"$className": "Folder",
+				"$path": "ComponentExtensions"
+			},
+			"Utils": {
+				"$className": "Folder",
+				"$path": "Utils"
+			},
+			"Data": {
+				"$className": "Folder",
+				"$path": "Data"
+			},
+			"Packages": {
+				"$className": "Folder",
+				"$path": "Packages"
+			},
+			"Source": {
+				"$className": "Folder",
+				"Client": {
+					"$className": "Folder",
+					"Modules": {
+						"$className": "Folder",
+						"$path": "Source/Client/Modules"
+					}
+				},
+				"Shared": {
+					"$className": "Folder",
+					"Modules": {
+						"$className": "Folder",
+						"$path": "Source/Shared/Modules"
+					}
+				}
+			}
+		},
+  
+		"ServerScriptService": {
+			"$className": "ServerScriptService",
+			"Source": {
+				"$className": "Folder",
+				"Server": {
+					"$className": "Folder",
+					"Modules": {
+						"$className": "Folder",
+						"$path": "Source/Server/Modules"
+					},
+					"Scripts": {
+						"$className": "Folder",
+						"$path": "Source/Server/Scripts"
+					}
+				}
+			}
+		},
+  
+		"StarterPlayer": {
+			"$className": "StarterPlayer",
+			"StarterPlayerScripts": {
+				"$className": "StarterPlayerScripts",
+				"Source": {
+					"$className": "Folder",
+					"Client": {
+						"$className": "Folder",
+						"Scripts": {
+							"$className": "Folder",
+							"$path": "Source/Client/Scripts"
+						}
+					}
+				}
+			}
+		}
+	}
+}
