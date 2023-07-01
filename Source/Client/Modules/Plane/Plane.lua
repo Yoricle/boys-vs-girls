@@ -9,6 +9,10 @@ local Component = require(ReplicatedStorage.Packages.Component)
 local Input = require(ReplicatedStorage.Packages.Input)
 local Knit = require(ReplicatedStorage.Packages.Knit)
 
+-- comms
+local comm = require(ReplicatedStorage.Packages.Comm)
+local ClientComm = comm.ClientComm
+
 -- input
 local controller = require(script.parent.Input.ControllerFactory)
 
@@ -25,6 +29,10 @@ local Plane = Component.new({ Tag = "Plane", Extensions = {TroveAdder} })
 
 function Plane:Construct()
     -- children of the plane
+    self._comm = ClientComm.new(self.Instance)
+    self.dropBomb = self._comm:GetSignal("DropBomb")
+    self.fireRocket = self._comm:GetSignal("FireRocket")
+
     self._engine = self.Instance.Engine
     self._vehicleSeat = self.Instance.VehicleSeat
     self._mouse = Knit.Player:GetMouse()
@@ -78,12 +86,12 @@ function Plane:GetEngineActive()
     return self.Instance:GetAttribute("Active") -- returns true or false
 end
 
-function Plane:FireRocket()
-    
+function Plane:FireRocket(...)
+    self.fireRocket:Fire(...) -- pass whatever..
 end
 
-function Plane:DropBombs()
-    
+function Plane:DropBombs(...) -- use input handling to control bomb drop
+    self.dropBomb:Fire(...)
 end
 
 function Plane:FireMachineGun()
@@ -100,8 +108,8 @@ end
 
 function Plane:Stop()
     print(self.Instance.Name .. " has been cleaned")
-    self.velocity:Destroy()
-    self.gyro:Destroy()
+    if self.velocity then self.velocity:Destroy() end
+    if self.gyro then self.gyro:Destroy() end
     self._trove:Destroy()
 end
 

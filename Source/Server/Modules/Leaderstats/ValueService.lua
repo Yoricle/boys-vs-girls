@@ -11,7 +11,7 @@ local Signal = require(ReplicatedStorage.Packages.Signal)
 
 local VALUE_DS_NAME = "bvg_01"
 
-local DEFAULT_BONKS = 0
+local DEFAULT_KOS = 0
 
 local GROUP_ID = 16763338
 
@@ -20,10 +20,10 @@ Datastore2.Combine("DATA", VALUE_DS_NAME)
 local ValueService = Knit.CreateService({
 	Name = "ValueService",
 	Client = {
-		Amount = Knit.CreateProperty(DEFAULT_BONKS),
+		Amount = Knit.CreateProperty(DEFAULT_KOS),
 		Multiplier = Knit.CreateProperty(1),
 	},
-	DEFAULT = DEFAULT_BONKS,
+	DEFAULT = DEFAULT_KOS,
 	DS_NAME = VALUE_DS_NAME,
 })
 
@@ -31,7 +31,7 @@ ValueService.Changed = Signal.new() -- to update the leaderstats top left of scr
 
 function ValueService:PlayerAdded(player: Player)
 	local coinStore = Datastore2(VALUE_DS_NAME, player)
-	local amount = coinStore:Get(DEFAULT_BONKS)
+	local amount = coinStore:Get(DEFAULT_KOS)
 
 	self.Changed:Fire(player, amount)
 
@@ -109,8 +109,13 @@ function ValueService:Increment(player, amount, ignoreMultiplier)
 	if not ignoreMultiplier then
 		amount *= self:GetMultiplier(player)
 	end
+	print(amount)
+	print(coinStore)
 
+	
 	coinStore:Increment(amount)
+	local Amount = coinStore:Get(DEFAULT_KOS)
+	self.Changed:Fire(player, Amount)
 	--TopCoinCollector.CoinsCollected:Fire(player, amount) -- this is to keep track on leaderboards
 	--Knit.GetService("BadgeAwardingService"):CoinsCollected(player, amount)
 end
@@ -121,13 +126,14 @@ function ValueService:Remove(player, amount)
 end
 
 function ValueService:Set(player, amount)
+	print(player, amount)
 	local coinStore = Datastore2(VALUE_DS_NAME, player)
 	coinStore:Set(amount)
 end
 
 function ValueService:Get(player)
 	local coinStore = Datastore2(VALUE_DS_NAME, player)
-	return coinStore:Get(DEFAULT_BONKS)
+	return coinStore:Get(DEFAULT_KOS)
 end
 
 return ValueService

@@ -1,12 +1,21 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local CollectionService = game:GetService("CollectionService")
+
+local VehicleFolder = ReplicatedStorage.Assets.Vehicles
 
 -- component extensions
 local TroveAdder = require(ReplicatedStorage.ComponentExtensions.TroveAdder)
 
 local Component = require(ReplicatedStorage.Packages.Component)
 
+-- comms
+local comm = require(ReplicatedStorage.Packages.Comm)
+local ServerComm = comm.ServerComm
+
 local Surfaces = {"TopSurface", "BottomSurface", "LeftSurface", "RightSurface", "FrontSurface", "BackSurface"}
+
+local DESTROYED_TAG: string = "Destroyed"
 
 --[[
     if player on the opposing team steals your plane, it changes the colour to their team
@@ -21,10 +30,19 @@ local Plane = Component.new({ Tag = "Plane", Extensions = {TroveAdder} })
 
 function Plane:Construct()
     -- children of the plane
+    self._comm = ServerComm.new(self.Instance)
+    self.dropBomb = self._comm:CreateSignal("DropBomb")
+    self.fireRocket = self._comm:CreateSignal("FireRocket")
+
     self._engine = self.Instance.Engine
     self._vehicleSeat = self.Instance.VehicleSeat
 
     self.Parts = {}
+
+	self.button = self.Instance.Parent.Regen
+
+	self.boys = game.Workspace.Planes.Boys
+	self.girls = game.Workspace.Planes.Girls
 
     self._seatWeld = nil
 end
@@ -34,13 +52,100 @@ function Plane:Start()
     local Weld = self:PerfectionWeld()
 
     if Weld and script.ClassName == "Script" then
-        self.Instance.AncestryChanged:Connect(function()
+        self.Instance.AncestryChanged:Connect(function(...)
+			print(...)
             self:PerfectionWeld()
         end)
     end
+
+	self.Instance.ChildRemoved:Connect(function(child)
+		print(child)
+		if child == "VehicleSeat" then -- if vehicleseat is removed from the plane from damage, then stop running and remove owner
+			self:Stop() -- stop running the code and cleanup
+		end
+	end)
+
+	self.dropBomb:Connect(function(...)
+		self:DropBombs(...) -- pass whatever..
+	end)
+
+	self.fireRocket:Connect(function(...)
+		self:FireRocket(...)
+	end)
+
     self:SeatWeldAdded()
     self:SeatWeldRemoved()
-    self:RandomizePlaneColour()
+    --self:RandomizePlaneColour()
+
+	self.button.ClickDetector.MouseClick:Connect(function(player)
+
+		--[[
+			When plane is regenerated, the ownerid attribute gets removed
+			if parts are destroyed, remove the owner attribute and set it back to N/A
+
+		]]
+
+
+		local OwnerAtt = self.Instance:GetAttribute("OwnerId")
+		local TeamAtt = self.Instance:GetAttribute("Team") -- boy/girl
+		local ActiveAtt = self.Instance:GetAttribute("Active")
+
+		print(OwnerAtt, TeamAtt)
+
+		if OwnerAtt == player.Name and ActiveAtt == false then -- owned plane not being used
+			self.button.Color = Color3.fromRGB(0, 0, 0)
+			self:RegenerateOriginal(player, TeamAtt) -- regenerate original, meaning destroying original version
+			self.button.Color = Color3.fromRGB(123, 47, 123)
+		end
+
+		if ActiveAtt == true and OwnerAtt ~= player.Name then -- if current instance of plane is active, can't respawn
+			return warn("Plane active and ownerd, cannot respawn")
+		end
+
+		print(TeamAtt, player.Team)
+
+		if TeamAtt ~= tostring(player.Team) then -- if you're not on the same team as the colour of plane, then you can't respawn the plane
+			return warn("Can't respawn enemy plane")
+		end
+
+		if OwnerAtt == "N/A" then -- if current plane isn't own by a player then regenerate
+			self.button.Color = Color3.fromRGB(0, 0, 0)
+			self:RegenerateOriginal(player, TeamAtt)
+			self.button.Color = Color3.fromRGB(123, 47, 123)
+		end
+	end)
+end
+
+function Plane:GenerateCopy(player, team) -- meaning original plane will stay, and will create a new copy
+	local spawn = self.button:GetPivot() -- plane model position
+
+	-- get joints that are attached to the basepart of the plane, if joints are removed. Then remove the ownerid and cleanup
+	for i, v in pairs(self.Instance:GetChildren()) do
+		print(v:GetJoints())
+	end
+	
+
+	print("Creating copy of new plane...")
+	local model = VehicleFolder.Plane:Clone()
+	model:PivotTo(spawn)
+	model:makeJoints()
+	model:SetAttribute("OwnerId", "N/A")
+	CollectionService:AddTag(model, "Plane") -- add the tag
+	model.Parent = self.boys.Plane
+	return model -- incase we need to do anything with the generated plane model
+end
+
+function Plane:RegenerateOriginal(player, team)
+	self.button.Color = Color3.fromRGB(0, 0, 0) -- black colour button
+
+	self.Instance.Destroying:Once(function() -- checking if instance has been destroyed
+		print("Previous plane is being destroyed")
+		CollectionService:AddTag(self.Instance, DESTROYED_TAG)
+	end)
+
+	self.Instance:Destroy() -- destroy existing plane
+	task.wait(2)
+	self.button.Color = Color3.fromRGB(123, 47, 123)
 end
 
 function Plane:CallOnChildren(Instance, FunctionToCall)
@@ -92,7 +197,7 @@ function Plane:SeatWeldAdded()
         print(child)
         if child.Name=="SeatWeld" then
             self._seatWeld = child
-            local player = game.Players:GetPlayerFromCharacter(child.Part1.Parent) -- Character
+            local player = Players:GetPlayerFromCharacter(child.Part1.Parent) -- Character
             self.Instance:SetAttribute("OwnerId", player.Name)
             self.Instance:SetAttribute("Active", true)
             print(player)
@@ -214,7 +319,7 @@ function Plane:Make(ClassType, Properties)
     return self:Modify(Instance.new(ClassType), Properties)
 end
 
-function Plane:SeatWeldRemoved()
+function Plane:SeatWeldRemoved() -- active set to false when player is removed from the seat
     -- weld removed when character jumps off
     self._vehicleSeat.ChildRemoved:Connect(function(child)
         if child == self._seatWeld then
@@ -262,9 +367,12 @@ function Plane:FireRocket()
     -- mobile rockets will display a button to fire
 end
 
-function Plane:DropBombs()
+function Plane:DropBombs() -- fired controls from client
     -- Bombs will be dropped with 'B'
     -- mobile bombs will display a button to fire
+	local bomb = ReplicatedStorage.Assets.Weapons.bomb:Clone()
+	local bombPos = self.Instance:GetPivot() * 2
+	bomb:SetPivot(bombPos)
 end
 
 function Plane:FireMachineGun()
@@ -272,7 +380,33 @@ function Plane:FireMachineGun()
 end
 
 function Plane:Stop()
-    print(self.Instance.Name .. " has been cleaned")
+    print(self.Instance.Name .. " cleaning...")
+
+	self.Instance:SetAttribute("OwnerId", "N/A") -- remove ownerid when the plane has stopped
+
+	task.wait(2)
+
+	local spawn = self.Instance:GetPivot() -- plane model position
+
+	print(CollectionService:HasTag(self.Instance, DESTROYED_TAG))
+
+	if CollectionService:HasTag(self.Instance, DESTROYED_TAG) then -- check destroyed, returns boolvalue
+		print("Creating new plane...")
+		local model = VehicleFolder.Plane:Clone()
+		model:PivotTo(spawn)
+		model:makeJoints()
+		CollectionService:AddTag(model, "Plane") -- add the tag
+		model.Parent = self.boys.Plane
+		model:SetAttribute("OwnerId", "N/A") -- possibly not setting attribute because plane's parent isn't set and is still nil, so set attribute after parent
+		--[[
+			if team == "Boys" then
+				model.Parent = self.boys.Plane -- parent back to workspace
+			else
+				model.Parent = self.girls
+			end
+		]]
+
+	end
 end
 
 return Plane

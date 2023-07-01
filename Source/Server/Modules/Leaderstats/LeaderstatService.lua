@@ -45,7 +45,6 @@ end
 function LeaderstatsService:PlayerAdded(player: Player)
 	local ValueService = Knit.GetService("ValueService") -- required the bonk service to get the level value
 	--BonkService.Client.level
-	print(ValueService.Client.Amount)
 
 	local leaderStats = Instance.new("Folder")
 	leaderStats.Name = "leaderstats"

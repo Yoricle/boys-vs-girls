@@ -4,6 +4,7 @@ local Component = require(ReplicatedStorage.Packages.Component)
 local TroveAdder = require(ReplicatedStorage.ComponentExtensions.TroveAdder)
 
 local Comm = require(ReplicatedStorage.Packages.Comm)
+local Knit = require(ReplicatedStorage.Packages.Knit)
 
 local ServerComm = Comm.ServerComm
 
@@ -36,7 +37,6 @@ function Gun:Construct()
     self._tagHumanoid = self._comm:CreateSignal("TagHumanoid")
     self._takeDamage = self._comm:CreateSignal("TakeDamage")
     self._playSound = self._comm:CreateSignal("PlaySound")
-
 end
 
 
@@ -55,27 +55,42 @@ function Gun:Start()
     end)
     
     self._tagHumanoid:Connect(function(player, humanoid)
-        local tag = Instance.new("ObjectValue")
-        tag.Value = player
-        tag.Name = "creator"
-        tag.Parent = humanoid
-        task.delay(2,function()
-            if tag ~= nil then
-                tag.Parent = nil
-            end
-        end)
+        self:TagHumanoid(player, humanoid)
+    end)
+end
+
+function Gun:TagHumanoid(player, humanoid)
+    local tag = Instance.new("ObjectValue")
+    tag.Value = player
+    tag.Name = "creator"
+    tag.Parent = humanoid
+    task.delay(2,function()
+        if tag ~= nil then
+            tag.Parent = nil
+        end
     end)
 end
 
 function Gun:PlaySound(player, sound)
-    
+    sound:Play()
+end
+
+function Gun:TakeDamage(player, humanoid, damage, head)
+    humanoid:TakeDamage(damage)
+    if humanoid.Health < 1 then
+        Knit.GetService("ValueService"):Increment(player, 1, true) -- boolean ignoring multiplier for now
+    end
+	if humanoid.Health < 1 and head then -- headshot
+		humanoid.Parent.Head:Destroy()
+        -- add points
+	end
 end
 
 function Gun:ActivateGun(player, startpoint, pos)
-    local newBullet = Bullet()
+    local newBullet = Bullet():Clone()
     newBullet.Name = player.Name.."Bullet"
-    local distance=(startpoint-pos).magnitude
-    local bulletLength = distance/2
+    local distance = (startpoint - pos).magnitude
+    local bulletLength = distance / 2
     if distance > 40 then
         newBullet.CFrame=CFrame.new(startpoint, pos) * CFrame.new(0, 0, -distance / 2)
         newBullet.Mesh.Scale=Vector3.new(.15,.15,bulletLength)
